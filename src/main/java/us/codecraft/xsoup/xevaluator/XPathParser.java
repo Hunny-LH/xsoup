@@ -1,5 +1,6 @@
 package us.codecraft.xsoup.xevaluator;
 
+import org.jsoup.helper.StringUtil;
 import org.jsoup.helper.Validate;
 import org.jsoup.select.Evaluator;
 import org.jsoup.select.Selector;
@@ -26,12 +27,17 @@ public class XPathParser {
     private static final String[] HIERARCHY_COMBINATORS = new String[]{"//", "/", "|"};
 
     private static final Map<String, FunctionEvaluator> FUNCTION_MAPPING = new HashMap<String, FunctionEvaluator>();
+
     static {
         FUNCTION_MAPPING.put("contains", new FunctionEvaluator() {
             @Override
             public Evaluator call(String... param) {
-                Validate.isTrue(param.length == 2, String.format("Error argument of %s", "contains"));
-                return new Evaluator.AttributeWithValueContaining(param[0], param[1]);
+                Validate.isTrue(param.length == 3, String.format("Error argument of %s", "contains"));
+                if (Boolean.getBoolean(param[2])) {
+                    return new Evaluator.AttributeWithValueContaining(param[0], param[1]);
+                } else {
+                    return new Evaluator.ContainsText(param[1]);
+                }
             }
         });
         FUNCTION_MAPPING.put("starts-with", new FunctionEvaluator() {
@@ -107,21 +113,26 @@ public class XPathParser {
         }
         evals.clear();
         String subQuery = consumeSubQuery();
-        XPathEvaluator tmpEval = parse(subQuery);
-        if (!(tmpEval instanceof DefaultXPathEvaluator)) {
-            throw new IllegalArgumentException(String.format("Error XPath in %s", subQuery));
-        }
-        DefaultXPathEvaluator newEval = (DefaultXPathEvaluator) tmpEval;
-        if (newEval.getElementOperator() != null) {
-            elementOperator = newEval.getElementOperator();
-        }
-        // attribute expr does not return Evaluator
-        if (newEval.getEvaluator() != null) {
-            if (combinator.equals("//")) {
-                currentEval = new CombiningEvaluator.And(newEval.getEvaluator(), new StructuralEvaluator.Parent(currentEval));
-            } else if (combinator.equals("/")) {
-                currentEval = new CombiningEvaluator.And(newEval.getEvaluator(), new StructuralEvaluator.ImmediateParent(currentEval));
+        if (!"..".equalsIgnoreCase(subQuery)) {
+            XPathEvaluator tmpEval = parse(subQuery);
+            if (!(tmpEval instanceof DefaultXPathEvaluator)) {
+                throw new IllegalArgumentException(String.format("Error XPath in %s", subQuery));
             }
+            DefaultXPathEvaluator newEval = (DefaultXPathEvaluator) tmpEval;
+            if (newEval.getElementOperator() != null) {
+                elementOperator = newEval.getElementOperator();
+            }
+
+            // attribute expr does not return Evaluator
+            if (newEval.getEvaluator() != null) {
+                if (combinator.equals("//")) {
+                    currentEval = new CombiningEvaluator.And(newEval.getEvaluator(), new StructuralEvaluator.Parent(currentEval));
+                } else if (combinator.equals("/")) {
+                    currentEval = new CombiningEvaluator.And(newEval.getEvaluator(), new StructuralEvaluator.ImmediateParent(currentEval));
+                }
+            }
+        } else {
+            currentEval = new StructuralEvaluator.Child(currentEval);
         }
         evals.add(currentEval);
 
@@ -250,6 +261,10 @@ public class XPathParser {
 
                 if (params.get(0).startsWith("@")) {
                     params.set(0, params.get(0).substring(1));
+                    params.add("true");
+                    return entry.getValue().call(params.toArray(new String[0]));
+                } else if (params.get(0).equalsIgnoreCase("text()")) {
+                    params.add("false");
                     return entry.getValue().call(params.toArray(new String[0]));
                 } else {
                     return null;
@@ -404,7 +419,8 @@ public class XPathParser {
     }
 
     public static XPathEvaluator parse(String xpathStr) {
-        XPathParser xPathParser = new XPathParser(xpathStr);
+        String xpath = xpathStr != null && xpathStr.endsWith("/") ? xpathStr.substring(0, xpathStr.length() -1): xpathStr;
+        XPathParser xPathParser = new XPathParser(xpath);
         return xPathParser.parse();
     }
 

@@ -4,6 +4,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.jsoup.select.Evaluator;
 
+import java.util.List;
+
 /**
  * Evaluators in Xsoup.
  * @author code4crafter@gmail.com
@@ -36,6 +38,14 @@ public abstract class XEvaluators {
         @Override
         protected String getPseudoClass() {
             return "nth-of-type";
+        }
+    }
+
+
+    public static class EmptyEvaluator extends Evaluator {
+        @Override
+        public boolean matches(Element element, Element element1) {
+            return false;
         }
     }
 }

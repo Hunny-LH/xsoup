@@ -3,6 +3,8 @@ package us.codecraft.xsoup.xevaluator;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Evaluator;
 
+import java.util.List;
+
 /**
  * Base structural evaluator.
  * Copy from {@link org.jsoup.select.StructuralEvaluator} because it is package visible
@@ -71,6 +73,27 @@ abstract class StructuralEvaluator extends Evaluator {
 
         public String toString() {
             return String.format(":parent%s", evaluator);
+        }
+    }
+
+    static class Child extends StructuralEvaluator {
+        public Child(Evaluator evaluator) {
+            this.evaluator = evaluator;
+        }
+
+        @Override
+        public boolean matches(Element root, Element element) {
+            List<Element> children = element.children();
+            for (Element cur : children) {
+                if (evaluator.matches(element, cur)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public String toString() {
+            return String.format(":child%s", evaluator);
         }
     }
 
