@@ -33,7 +33,7 @@ public class XPathParser {
             @Override
             public Evaluator call(String... param) {
                 Validate.isTrue(param.length == 3, String.format("Error argument of %s", "contains"));
-                if (Boolean.getBoolean(param[2])) {
+                if (Boolean.parseBoolean(param[2])) {
                     return new Evaluator.AttributeWithValueContaining(param[0], param[1]);
                 } else {
                     return new Evaluator.ContainsText(param[1]);
